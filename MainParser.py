@@ -18,6 +18,7 @@ class LogParser:
         self.stacktraceflag = False
         self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) .*:(.*)"
         self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) (\w*AndroidRuntime):.*at\w*.*"
+        self.stack_header_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*):(.*)"
         def read_file(path):
             with open(path,encoding='utf-8') as f:
                 self.lines = f.readlines()
@@ -30,9 +31,12 @@ class LogParser:
         # group(2) is log level
         # group(3) is log message
         """
-        if re.match(self.stack_pattern, line):
-                self.stacktraceflag = True
-                self.stacktracestr += line
+        # If exception header is found, we need to add to errors as well as stack trace
+        if re.match(self.stack_header_pattern, line):
+            self.stacktracestr += line
+            self.stacktraceflag = True
+        elif re.match(self.stack_pattern, line):
+            self.stacktracestr += line
         else:
             if self.stacktraceflag:
                     self.stacktracelist.append(self.stacktracestr)
@@ -57,22 +61,27 @@ class LogParser:
 
     def print_fatalexceptions(self):
         """ To print only the fatal exceptions """
-        pass
+        print("\nFATAL EXCEPTION")
+        print("===============")
+        for number, string in enumerate(self.stacktracelist,start=1):
+            string_lines = string.split("\n")
+            print("#{0}){1}".format(number,string_lines[2]))        
 
 
     def print_stacktraces(self):
-        print("Stacktrace")
+        print("\nStacktrace")
         print("==========")
         for number, string in enumerate(self.stacktracelist,start=1):
+            string_lines = string.split("\n")
             print("#{0}){1}".format(number,string))
 
     def print_errors(self):
         """ To print only the errors"""
-        print("Errors")
+        print("\nErrors")
         print("=======")
-        if self.errors:
-            for value, count in self.errors.items():
-                print("{}|{}".format(value,count))
+        for number, string in enumerate(self.stacktracelist,start=1):
+            string_lines = string.split("\n")
+            print("#{0}){1}".format(number,string_lines[2]))
 
     def print_matchingstrings(self):
         """ To print only the matching strings"""
