@@ -10,13 +10,11 @@ class LogParser:
         self.search_strings = search_strings
         self.pid = process_id
         self.lines = []
-        self.fatalexceptions = {}
-        self.errors = {}
         self.matching_strings = {}
         self.stacktracestr = ""
         self.stacktracelist = []
         self.stacktraceflag = False
-        self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) .*:(.*)"
+        self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z] \w*\s*:\s*) (.*)"
         self.stack_header_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*): (.*)"
         self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*):.*at (.*)"
         def read_file(path):
@@ -50,11 +48,12 @@ class LogParser:
                 if self.pid == s.group(1):
                     log_level = s.group(2)
                     msg = s.group(3)
-                    if log_level == "E":
-                        if self.errors.get(msg):
-                            self.errors[msg].append(line_number)
-                        else:
-                            self.errors[msg]=[line_number]
+                    for search_str in self.search_strings:
+                        if search_str in msg:
+                            if self.matching_strings.get(msg):
+                                self.matching_strings[msg].append(line_number)
+                            else:
+                                self.matching_strings[msg]=[line_number]
 
 
     def process_lines(self):
@@ -88,10 +87,13 @@ class LogParser:
 
     def print_matchingstrings(self):
         """ To print only the matching strings"""
-        pass
-
+        print("\nMatching Strings")
+        print("==================")
+        for index, (key, values) in enumerate(self.matching_strings.items(), start=1):
+            print("#{0}){1}|{2}".format(index, key,len(values)))        
+    
     def print_all(self):
-        """ To print the final output"""
+        """ To print the cummulative output"""
         self.print_fatalexceptions()
         self.print_stacktraces()
         self.print_errors()
@@ -105,7 +107,7 @@ def main():
     if len(sys.argv) < 2:
         print("Please provide file as the input")
         exit(-1)
-    lp = LogParser(input_file,"4667",[])
+    lp = LogParser(input_file,"4667",["WARNING","OOM","OutOfMemoryError"])
     lp.process_lines()
     lp.print_all()
 
