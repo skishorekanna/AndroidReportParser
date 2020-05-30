@@ -13,45 +13,63 @@ class LogParser:
         self.fatalexceptions = {}
         self.errors = {}
         self.matching_strings = {}
-        self.stacktraces = {}
+        self.stacktracestr = ""
+        self.stacktracelist = []
+        self.stacktraceflag = False
         self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) .*:(.*)"
+        self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) (\w*AndroidRuntime):.*at\w*.*"
         def read_file(path):
             with open(path,encoding='utf-8') as f:
                 self.lines = f.readlines()
         read_file(filepath)
 
-    def process_line(self, line):
-        """ To process line and update the dictionaries """
-        if "FATAL EXCEPTION" in line:
-            print(line)
+    def process_line(self, line, line_number):
+        """ To process line and update the dictionaries
+        # Note: There are three groups matched
+        # group(1) is pid
+        # group(2) is log level
+        # group(3) is log message
+        """
+        if re.match(self.stack_pattern, line):
+                self.stacktraceflag = True
+                self.stacktracestr += line
         else:
+            if self.stacktraceflag:
+                    self.stacktracelist.append(self.stacktracestr)
+                    self.stacktracestr = ""
+                    self.stacktraceflag = False                
             s = re.match(self.pattern, line)
-            # There are three groups matched
-            # group(1) is pid
-            # group(2) is log level
-            # group(3) is log message
             if s:
                 if self.pid == s.group(1):
                     log_level = s.group(2)
                     msg = s.group(3)
                     if log_level == "E":
                         if self.errors.get(msg):
-                            self.errors[msg]+=1
+                            self.errors[msg].append(line_number)
                         else:
-                            self.errors[msg]=1
+                            self.errors[msg]=[line_number]
 
 
     def process_lines(self):
         """ To process all lines """
-        for line in self.lines:
-            self.process_line(line)
+        for lineno,line in enumerate(self.lines, start=1):
+            self.process_line(line, lineno)
 
     def print_fatalexceptions(self):
         """ To print only the fatal exceptions """
         pass
 
+
+    def print_stacktraces(self):
+        print("Stacktrace")
+        print("==========")
+        for number, string in enumerate(self.stacktracelist,start=1):
+            print("#{0}){1}".format(number,string))
+
     def print_errors(self):
         """ To print only the errors"""
+        print("Errors")
+        print("=======")
         if self.errors:
             for value, count in self.errors.items():
                 print("{}|{}".format(value,count))
@@ -63,6 +81,7 @@ class LogParser:
     def print_all(self):
         """ To print the final output"""
         self.print_fatalexceptions()
+        self.print_stacktraces()
         self.print_errors()
         self.print_matchingstrings()
 
