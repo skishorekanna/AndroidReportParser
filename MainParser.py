@@ -17,8 +17,8 @@ class LogParser:
         self.stacktracelist = []
         self.stacktraceflag = False
         self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) .*:(.*)"
-        self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z]) (\w*AndroidRuntime):.*at\w*.*"
-        self.stack_header_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*):(.*)"
+        self.stack_header_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*): (.*)"
+        self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*):.*at (.*)"
         def read_file(path):
             with open(path,encoding='utf-8') as f:
                 self.lines = f.readlines()
@@ -29,14 +29,17 @@ class LogParser:
         # Note: There are three groups matched
         # group(1) is pid
         # group(2) is log level
-        # group(3) is log message
+        # group(4) is log message
         """
         # If exception header is found, we need to add to errors as well as stack trace
-        if re.match(self.stack_header_pattern, line):
-            self.stacktracestr += line
+        header_match = re.match(self.stack_header_pattern, line)
+        content_match = re.match(self.stack_pattern, line)
+        newline = "\n"
+        if header_match:
+            self.stacktracestr += (header_match.group(4) + newline)
             self.stacktraceflag = True
-        elif re.match(self.stack_pattern, line):
-            self.stacktracestr += line
+        elif content_match:
+            self.stacktracestr += (content_match.group(4) + newline)
         else:
             if self.stacktraceflag:
                     self.stacktracelist.append(self.stacktracestr)
