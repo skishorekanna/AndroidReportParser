@@ -17,6 +17,8 @@ class LogParser:
         self.pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} ([A-Z] \w*\s*:\s*) (.*)"
         self.stack_header_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*): (.*)"
         self.stack_pattern = "\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}  (\d{4})  \d{4} (E) (\w*AndroidRuntime\w*):.*at (.*)"
+        self.output = {}
+        self.newline = "\n"
         def read_file(path):
             with open(path,encoding='utf-8') as f:
                 self.lines = f.readlines()
@@ -32,12 +34,11 @@ class LogParser:
         # If exception header is found, we need to add to errors as well as stack trace
         header_match = re.match(self.stack_header_pattern, line)
         content_match = re.match(self.stack_pattern, line)
-        newline = "\n"
         if header_match:
-            self.stacktracestr += (header_match.group(4) + newline)
+            self.stacktracestr += (header_match.group(4) + self.newline)
             self.stacktraceflag = True
         elif content_match:
-            self.stacktracestr += (content_match.group(4) + newline)
+            self.stacktracestr += (content_match.group(4) + self.newline)
         else:
             if self.stacktraceflag:
                     self.stacktracelist.append(self.stacktracestr)
@@ -60,30 +61,46 @@ class LogParser:
         """ To process all lines """
         for lineno,line in enumerate(self.lines, start=1):
             self.process_line(line, lineno)
+        self.parse_output()
+
+    def parse_output(self):
+        """
+        This is the process the output and convert it to dict.
+        rtype: dict key-> number value-> content, count
+        """
+        for number, string in enumerate(self.stacktracelist,start=1):
+            lines = string.split(self.newline)
+            already_added = []
+            header = lines[2]
+            content = "\n".join(lines[3:])
+            if self.output.get(header):
+                self.output[header]["count"]+=1
+            else:
+                self.output[header]={"count":0,"content":"","number":-1}
+                self.output[header]["count"]=1
+                self.output[header]["content"]=content
+                self.output[header]["number"]=number
 
     def print_fatalexceptions(self):
         """ To print only the fatal exceptions """
         print("\nFATAL EXCEPTION")
         print("===============")
-        for number, string in enumerate(self.stacktracelist,start=1):
-            string_lines = string.split("\n")
-            print("#{0}){1}".format(number,string_lines[2]))        
-
+        for key, value in self.output.items():
+            print("#{0}){1}|{2}".format(value["number"],key,value["count"]))
 
     def print_stacktraces(self):
         print("\nStacktrace")
         print("==========")
-        for number, string in enumerate(self.stacktracelist,start=1):
-            string_lines = string.split("\n")
-            print("#{0}){1}".format(number,string))
+        for key, value in self.output.items():
+            if value["content"]:
+                print("#{0}){1}".format(value["number"],key+self.newline+value["content"]))
 
     def print_errors(self):
         """ To print only the errors"""
         print("\nErrors")
         print("=======")
-        for number, string in enumerate(self.stacktracelist,start=1):
-            string_lines = string.split("\n")
-            print("#{0}){1}".format(number,string_lines[2]))
+        for key, value in self.output.items():
+            print("#{0}){1}|{2}".format(value["number"],key,value["count"]))
 
     def print_matchingstrings(self):
         """ To print only the matching strings"""
