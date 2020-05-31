@@ -1,7 +1,72 @@
 """
-This is the utility for parsing the android logs
-"""
+Utility for parsing the android logs.
 
+
+Usage:
+MainParser.py <filepath> <pid> <search strings>
+filepath - path to the file - type(str)
+pid - process id - type(str)
+search_strings - strings to be searched as comma separated values- type( list of strings )
+
+Note: search_strings are optional; Rest all the parameters are mandatory
+
+***************************INPUT********************************************************
+>python MainParser.py bugreport-N2G47H-2019-08-27-19-02-04.txt 4667 "WARNING","OOM"
+***************************OUTPUT********************************************************
+FATAL EXCEPTION
+===============
+#1)java.lang.IllegalStateException: Can not perform this action after onSaveInstanceState|2
+#2)java.lang.OutOfMemoryError: OutOfMemoryError thrown while trying to throw OutOfMemoryError; no stack trace available|1
+
+Stacktrace
+==========
+#1)java.lang.IllegalStateException: Can not perform this action after onSaveInstanceState
+       at android.support.v4.app.FragmentManagerImpl.checkStateLoss(Unknown Source:10)
+       at android.support.v4.app.FragmentManagerImpl.enqueueAction(Unknown Source:2)
+       at android.support.v4.app.BackStackRecord.a(Unknown Source:78)
+       at android.support.v4.app.BackStackRecord.commit(Unknown Source:1)
+       at glance.ui.sdk.activity.GlanceHomeActivity.showBingeContainer(Unknown Source:19)
+       at glance.ui.sdk.activity.GlanceHomeActivity.e(Unknown Source:0)
+       at glance.ui.sdk.activity.GlanceHomeActivity$3.onTabSelected(Unknown Source:30)
+       at android.support.design.widget.TabLayout.dispatchTabSelected(Unknown Source:19)
+       at android.support.design.widget.TabLayout.a(Unknown Source:55)
+       at android.support.design.widget.TabLayout.a(Unknown Source:1)
+       at android.support.design.widget.TabLayout$Tab.select(Unknown Source:14)
+       at android.support.design.widget.TabLayout$TabView.performClick(Unknown Source:16)
+       at android.view.View.performClickInternal(View.java:6585)
+       at android.view.View.access$3100(View.java:785)
+       at android.view.View$PerformClick.run(View.java:25921)
+       at android.os.Handler.handleCallback(Handler.java:873)
+       at android.os.Handler.dispatchMessage(Handler.java:99)
+       at android.os.Looper.loop(Looper.java:201)
+       at android.app.ActivityThread.main(ActivityThread.java:6810)
+       at java.lang.reflect.Method.invoke(Native Method)
+       at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:547)
+       at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:873)
+
+
+Errors
+=======
+#1)java.lang.IllegalStateException: Can not perform this action after onSaveInstanceState|2
+#2)java.lang.OutOfMemoryError: OutOfMemoryError thrown while trying to throw OutOfMemoryError; no stack trace available|1
+
+Matching Strings
+==================
+#1)Throwing OutOfMemoryError "Failed to allocate a 12 byte allocation with 0 free bytes and -2MB until OOM"|4
+#2)Throwing OutOfMemoryError "Failed to allocate a 28 byte allocation with 0 free bytes and -2MB until OOM"|2
+#3)Throwing OutOfMemoryError "Failed to allocate a 32 byte allocation with 0 free bytes and -2MB until OOM"|1
+#4)Throwing OutOfMemoryError "Failed to allocate a 24 byte allocation with 0 free bytes and -2MB until OOM"|2
+#5)Throwing OutOfMemoryError "Failed to allocate a 43 byte allocation with 0 free bytes and -2MB until OOM"|2
+#6)Throwing OutOfMemoryError "Failed to allocate a 16 byte allocation with 0 free bytes and -2MB until OOM"|1
+#7)Throwing OutOfMemoryError "Failed to allocate a 56 byte allocation with 0 free bytes and -2MB until OOM"|1
+#8)Throwing OutOfMemoryError "Failed to allocate a 8204 byte allocation with 0 free bytes and -2MB until OOM"|2
+#9)Throwing OutOfMemoryError "Failed to allocate a 128 byte allocation with 0 free bytes and -2MB until OOM"|1
+#10)JNI WARNING: java.lang.OutOfMemoryError thrown while calling printStackTrace|3
+#11)Throwing OutOfMemoryError "Failed to allocate a 28 byte allocation with 0 free bytes and -2MB until OOM" (recursive case)|16
+
+"""
+import sys
+import os
 import re
 from collections import OrderedDict
 
@@ -35,10 +100,10 @@ class LogParser:
         # If exception header is found, we need to add to errors as well as stack trace
         header_match = re.match(self.stack_header_pattern, line)
         content_match = re.match(self.stack_pattern, line)
-        if header_match:
+        if header_match and self.pid==header_match.group(1):
             self.stacktracestr += (header_match.group(4) + self.newline)
             self.stacktraceflag = True
-        elif content_match:
+        elif content_match and self.pid==content_match.group(1):
             self.stacktracestr += (content_match.group(4) + self.newline)
         else:
             if self.stacktraceflag:
@@ -120,13 +185,19 @@ class LogParser:
 
 
 def main():
-    import sys
-    input_file = "bugreport-N2G47H-2019-08-27-19-02-04.txt"
-    sys.argv.append(input_file)
-    if len(sys.argv) < 2:
-        print("Please provide file as the input")
+    if len(sys.argv) < 3:
+        print("Insufficient number of arguments.")
+        print(__doc__)
         exit(-1)
-    lp = LogParser(input_file,"4667",["WARNING","OOM","OutOfMemoryError"])
+    search_list = sys.argv[3]
+    if sys.argv[3]:
+        search_list = sys.argv[3].split(",")
+    else:
+        search_list = []
+    lp = LogParser(sys.argv[1],sys.argv[2],search_list)
+    if not os.path.exists(sys.argv[1]):
+        print("Given log file does not exist")
+        exit(-2)
     lp.process_lines()
     lp.print_all()
 
